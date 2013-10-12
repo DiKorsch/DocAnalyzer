@@ -20,6 +20,37 @@ def VALUE_FOR_INSERT(val, TYPE):
   elif TYPE.startswith('VARCHAR'):
     return "'%s'" %(val)#unicode(val))
 
+class wordCache(object):
+  def __init__(self, value, rdnrID, paragraphID, dateiID):
+    self.word = value.encode("latin-1")
+    self.rdnrID = rdnrID
+    self.paragraphID = paragraphID
+    self.dateiID = dateiID
+    self.count = 0
+
+  def inc(self):
+    self.count += 1
+
+  def toQuery(self, dbh, queries = []):
+    wordId = dbh.nextIndex("wort")
+    word_para_Id = dbh.nextIndex("wort_paragraph")
+    word_rdnr_Id = dbh.nextIndex("wort_rdnr")
+    word_datei_Id = dbh.nextIndex("wort_datei")
+    queries.append("""INSERT INTO wort 
+          (`ID`, `value`, `count`) 
+          VALUES (%d, \'%s\', %d);""" %(wordId, self.word, self.count))
+    queries.append("""INSERT INTO wort_paragraph 
+          (`ID`, `wortID`, `paragraphID`) 
+          VALUES (%d, %d, %d);""" %(word_para_Id, wordId, self.paragraphID))
+    queries.append("""INSERT INTO wort_rdnr 
+          (`ID`, `wortID`, `rdnrID`) 
+          VALUES (%d, %d, %d);""" %(word_rdnr_Id, wordId, self.rdnrID))
+    queries.append("""INSERT INTO wort_datei 
+          (`ID`, `wortID`, `dateiID`) 
+          VALUES (%d, %d, %d);""" %(word_datei_Id, wordId, self.dateiID))
+    return queries
+    # print query
+    # exit(1)
 
 class DBInterface(object):
   tables = [
@@ -68,6 +99,8 @@ class DBInterface(object):
     ]
   ]
 
+
+  words = {}
   __instance = None
   __initialized = False
 
@@ -125,6 +158,20 @@ class DBInterface(object):
       })
 
   def addWord(self, value, rdnrID, paragraphID, dateiID):
+    cache = self.words.get(value, wordCache(value, rdnrID, paragraphID, dateiID))
+    cache.inc()
+    self.words[value] = cache
+
+  def writeWords(self):
+    queries = []
+    for word in self.words.values():
+      queries = word.toQuery(self._dbh, queries)
+    for query in queries:
+      self._dbh.execute(query) 
+    self._dbh.commit()
+    self.words.clear()
+
+  def addWord__(self, value, rdnrID, paragraphID, dateiID):
     query = "SELECT `ID`, `count` FROM wort WHERE `value`=\"%s\" LIMIT 1;" %(value)
     res = self._dbh.execute(query)
     if res:
@@ -182,7 +229,7 @@ class DBInterface(object):
     return result
 
 class DBHandler(object):
-  LAST_IDX = 0
+  LAST_IDX = {}
   __instance = None
   __initialized = False
 
@@ -205,11 +252,9 @@ class DBHandler(object):
     return self.__selectRow(tblName)
 
   def addRow(self, tblName, fields):
-    nextId = self.__nextIndex(tblName)
+    nextId = self.nextIndex(tblName)
     if nextId < 0:
-      print "ERROR while adding a row"
-      return self.LAST_IDX
-    self.LAST_IDX = nextId 
+      raise Exception("ERROR while adding a row")
     query = """INSERT INTO %s
       (`ID`, %s) VALUES (%s, %s);"""
     colNames = u""
@@ -220,6 +265,7 @@ class DBHandler(object):
     colNames, colValues = colNames[:-1], colValues[:-1]
     query = query %(tblName, colNames, nextId, colValues)
     self.execute(query)
+    self.commit()
     return nextId
 
   def execute(self, query, throwAnErr = False):
@@ -230,10 +276,14 @@ class DBHandler(object):
       if throwAnErr: 
         raise e
       else:
-        print e
+        print "[execute]: ", e
+        print "query was: ", query
+        exit(1)
       return None
-    self.connection.commit()
     return cursor
+
+  def commit(self):
+    self.connection.commit()
 
   def createTable(self, name, fields):
     query = """CREATE TABLE `%s`(
@@ -245,11 +295,13 @@ class DBHandler(object):
       queryFields += "`%s` %s," %tuple(f)
     query = query %(name, queryFields)
     self.execute(query)
+    self.commit()
 
   def tableExists(self, tblName):
     query = "SELECT * FROM `%s` LIMIT 1;" %(tblName)
     try:
       self.execute(query, True)
+      self.commit()
       return True
     except OperationalError, e:
       return False
@@ -257,14 +309,16 @@ class DBHandler(object):
   def deleteTable(self, name):
     try:
       self.execute("DROP TABLE IF EXISTS `%s`;" %(name))
+      self.commit()
     except Exception, e:
-      print e
+      print "deleteTable:", e
 
   def deleteTableContent(self, name):
     try:
       self.execute("DELETE FROM `%s`;" %(name))
+      self.commit()
     except Exception, e:
-      print e
+      print "deleteTableContent:", e
 
   # def _addQuery(self, query):
   #   self._query_lock.acquire()
@@ -293,17 +347,26 @@ class DBHandler(object):
     else: 
       query += ";"
       query = query %(tblName)
-    return self.execute(query).fetchall()
+    curs = self.execute(query)
+    self.commit()
+    return curs.fetchall()
   
 
-  def __nextIndex(self, tblName):
-    curs = self.execute("SELECT ID FROM %s ORDER BY ID DESC LIMIT 1" %(tblName))
-    if curs == None: return -1
-    rows = curs.fetchall()
-    if len(rows) == 0:
-      return 1
+  def nextIndex(self, tblName):
+    last_idx = self.LAST_IDX.get(tblName, 0) 
+    idx = 1
+    if last_idx > 0:
+      idx = last_idx + 1
     else:
-      return rows[0][0]+1
+      curs = self.execute("SELECT ID FROM %s ORDER BY ID DESC LIMIT 1" %(tblName))
+      self.commit()
+      if curs == None: return -1
+      rows = curs.fetchall()
+      if len(rows) != 0:
+        idx = rows[0][0]+1
+    self.LAST_IDX[tblName] = idx
+    return idx
+
 
   def __connect(self):
     return Database.connect(DB_NAME)

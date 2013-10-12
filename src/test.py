@@ -2,13 +2,14 @@
 from doc.reader import DocReader
 from os import path
 from dbhandler import DBInterface
+from time import time
 
 dbi = DBInterface()
 dbi.clear_db()
 i = 0
 
 def extract_words(line):
-  charsToDelete = ['.', ',', ';', ':', '?', '!', '"', "'", "(", ")"]
+  charsToDelete = ['.', ',', ';', ':', '?', '!', '"', "'", "(", ")", chr(0)]
   charsToReplaceWithSpace = ['/', ]
 
   cleanLine = line.rstrip()
@@ -22,14 +23,15 @@ def extract_words(line):
 def save_content(content, RDNR_ID, PARAGRAPH_ID, FILE_ID):
   global dbi
   global i
+  global t1
   for line in content:
     for word in extract_words(line):
       dbi.addWord(word, RDNR_ID, PARAGRAPH_ID, FILE_ID)
       i += 1
-      if i % 500 == 0:
-        print "%d words added" %(i)
-
-
+  t2 = time()
+  dbi.writeWords()
+  print "%d words written in %01.03f sec" %(i, t2 - t1)
+  t1 = t2
 
 NEW_LINE = "\n"
 
@@ -37,7 +39,7 @@ filename = path.abspath("../tests/Paragraphen/P_001-007.doc")
 
 docF = DocReader(filename)
 
-
+t1 = time()
 rawCont = docF.read()
 rawCont = rawCont.decode('latin-1')
 
@@ -54,7 +56,7 @@ for para in paragraphs:
   rdNrContent = []
   for line in paraContent.split(NEW_LINE):
     if line.isdigit():
-      if not curRdNr == None:
+      if curRdNr != None:
         RDNR_ID = dbi.addRdNr(curRdNr, PARAGRAPH_ID)
         save_content(rdNrContent, RDNR_ID, PARAGRAPH_ID, FILE_ID)
       rdNrContent = []
