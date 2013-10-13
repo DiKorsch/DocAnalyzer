@@ -1,9 +1,6 @@
 # coding=utf-8
-from os import path
 from sqlite3 import dbapi2 as Database
 from sqlite3 import OperationalError
-from time import sleep
-from threading import Thread, Lock
 
 ## DB constants
 DB_NAME = "test.sqlite"
@@ -227,26 +224,18 @@ class DBInterface(object):
                 i += 1
             result[row[0]] = row_result
         return result
+     
+    def reconnect(self, dbName):
+        self._dbh.reconnect(dbName)
+        self._init_tables()
+        
+    def disconnect(self):
+        self._dbh.disconnect()
 
 class DBHandler(object):
     LAST_IDX = {}
     __instance = None
     __initialized = False
-
-    # _query_queue = []
-    # _query_lock = None
-    # _worker_thread = None
-    # def popQueue(self):
-    #     self._query_lock.acquire()
-    #     old = list(self._query_queue)
-    #     self._query_queue = []
-    #     self._query_lock.release()
-    #     return old
-
-    # def stopWorker(self):
-    #     self._worker_thread.work = False
-    #     self._worker_thread.join()
-
 
     def allRows(self, tblName):
         return self.__selectRow(tblName)
@@ -303,7 +292,7 @@ class DBHandler(object):
             self.execute(query, True)
             self.commit()
             return True
-        except OperationalError, e:
+        except OperationalError:
             return False
 
     def deleteTable(self, name):
@@ -319,11 +308,6 @@ class DBHandler(object):
             self.commit()
         except Exception, e:
             print "deleteTableContent:", e
-
-    # def _addQuery(self, query):
-    #     self._query_lock.acquire()
-    #     self._query_queue.append(query)
-    #     self._query_lock.release()
 
     def __deleteNones(self, aDict):
         RESULT = {}
@@ -368,11 +352,13 @@ class DBHandler(object):
         return idx
 
 
-    def __connect(self):
-        return Database.connect(DB_NAME)
+    def __connect(self, dbName = DB_NAME):
+        return Database.connect(dbName)
 
-    def __disconnect(self):
-        if self.connection != None: self.connection.close()
+    def disconnect(self):
+        if self.connection != None: 
+            self.connection.close()
+            self.connection = None
 
     def __del__(self):
         self.stopWorker()
@@ -386,6 +372,10 @@ class DBHandler(object):
         # self._worker_thread = DBWorker()
         # self._worker_thread.start()
         super(DBHandler, self).__init__(*args, **kwargs)
+    
+    def reconnect(self, dbName):
+        self.disconnect()
+        self.connection = self.__connect(dbName)
 
     def __new__(cls, *args, **kwargs):
         if not cls.__instance: 
@@ -394,30 +384,6 @@ class DBHandler(object):
 
     def _drop(self):
         self.__instance = None
-
-# class DBWorker(Thread):
-#     __sleepTime = 6
-#     work = True
-
-#     def __init__(self, *args, **kwargs):
-#         super(DBWorker, self).__init__(*args, **kwargs)
-
-#     def run(self):
-#         while True:
-#             sleep(self.__sleepTime)
-#             self.doTheJob()
-#             if not self.work: return
-    
-#     def doTheJob(self):
-#         queue = DBHandler().popQueue()
-#         if not queue: return
-#         mainQuery = ""
-#         for query in queue:
-#             mainQuery += query
-#             if not query.endswith(";"):
-#                 mainQuery += ";"
-#         DBHandler().execute(mainQuery)
-
 
 
 ################ TESTS ################
