@@ -53,6 +53,7 @@ class MainWindow(myDialog):
     def addViewBtn(self):
         self._viewBtn = QPushButton("Datenbank anzeigen", self)
         self._viewBtn.clicked.connect(self.openDBView)
+        self.myLayout.addRow(self._viewBtn)
 
     def addReadRow(self):
         self._readBtn = QPushButton(QString.fromUtf8("Inhalt speichern"), self)

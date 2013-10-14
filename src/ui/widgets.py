@@ -5,7 +5,7 @@ from PyQt4.QtCore import QString
 
 
 def capitalized(s):
-    if not len(s) or (not(s.isalpha() or "-" in s)):
+    if len(s) == 0 or (not(s.isalpha() or "-" in s)):
         return False
     c = s[0]
     if c == c.upper(): return True
@@ -20,7 +20,7 @@ class DBViewWidget(QWidget):
         super(DBViewWidget, self).__init__(parent)
         self.myLayout = QVBoxLayout(self)
         self._tableWidget = QTableView(self)
-        self._chkBx = QCheckBox(QString.fromUtf8("Grobuchstaben"), self)
+        self._chkBx = QCheckBox(QString.fromUtf8("Großbuchstaben"), self)
         
         self._chkBx.toggled.connect(self.toggleContent)
         
