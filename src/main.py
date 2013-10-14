@@ -1,6 +1,6 @@
 from PyQt4.QtGui import QApplication
 from PyQt4.QtCore import QSharedMemory
-from ui import MainWindow
+from ui.windows import MainWindow
 
 class SingleApplication(QApplication):
     def __init__(self, *argv):

@@ -108,7 +108,7 @@ class Paragraph(object):
         self.rdWordMap = {}
         self.rawContent, self.document = paraContent, docCaption
         self.caption, nl, self.content = paraContent.partition(NEW_LINE)
-        filePath = absPath.join(PLAIN_FOLDER, absPath.join(self.document, self.caption))
+        filePath = path.join(PLAIN_FOLDER, path.join(self.document, self.caption))
         self.__mapContentToRdNr()
         # for k in self.rdWordMap:
         #     for w in self.rdWordMap[k].capWords.values():

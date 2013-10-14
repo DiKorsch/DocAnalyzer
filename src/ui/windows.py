@@ -6,6 +6,8 @@ from PyQt4.QtCore import QString, QDir
 
 import os
 from fileReader import Reader
+from ui.widgets import DBViewWidget
+from dbhandler import DBHandler
 
 def messageBox(icon = QMessageBox.Information, title = "", message = "", parent = None, buttons = QMessageBox.StandardButton):
     return QMessageBox(icon, title, message,  parent, buttons).exec_()
@@ -21,6 +23,7 @@ class myDialog(QDialog):
 class MainWindow(myDialog):
     _openBtn = None
     _readBtn = None
+    _viewBtn = None
     _openTextField = None
     
     _listWidget = None
@@ -30,6 +33,8 @@ class MainWindow(myDialog):
     
     _progresses = None
     
+    _dbViewWin = None
+    
     currentFolder = QDir.currentPath()
     
     currentReader = None
@@ -38,11 +43,16 @@ class MainWindow(myDialog):
         super(MainWindow, self).__init__(parent, *args, **kwargs)
         self.setWindowTitle("DocAnalyzer")
 #         self.setFixedSize(400, 300)
-        
         self.addFileRow()
         self.addListWidget()
         self.addReadRow()
         self.addProgressBars()
+        self.addViewBtn()
+        
+    
+    def addViewBtn(self):
+        self._viewBtn = QPushButton("Datenbank anzeigen", self)
+        self._viewBtn.clicked.connect(self.openDBView)
 
     def addReadRow(self):
         self._readBtn = QPushButton(QString.fromUtf8("Inhalt speichern"), self)
@@ -102,8 +112,20 @@ class MainWindow(myDialog):
         self.currentReader.ready.connect(self.readerReady)
         self.currentReader.folderStatusUpdated.connect(self.updateFolderStatus)
         self.currentReader.fileStatusUpdated.connect(self.updateFileStatus)
-        self.currentReader.save_folder(str(self.currentFolder), "%s.sqlite" %str(dbName))
+        self.currentReader.save_folder(str(self.currentFolder), )
     
+    def openDBView(self):
+        selWindow = DBSelectorWindow(self)
+        if not selWindow.exec_(): return
+        dbName = selWindow.getDBName()
+        if not dbName:
+            messageBox(QMessageBox.Critical, "Fehler", "Der Name darf nicht leer sein!",  self, QMessageBox.Ok)
+            return None
+        
+#         if self._dbViewWin == None:
+        self._dbViewWin = ViewWindow(self, "%s.sqlite" %str(dbName))
+        self._dbViewWin.show()
+        
     def readerReady(self):
         self._progresses.setEnabled(False)
     
@@ -151,3 +173,24 @@ class DBSelectorWindow(myDialog):
     def getDBName(self):
         return self._lineEdit.text()
     
+    
+class ViewWindow(myDialog):
+    def __init__(self, parent=None, dbName = None):
+        super(ViewWindow, self).__init__(parent)
+        if not dbName: raise Exception("dbName could not be empty or None!")
+        self.layout().addWidget(DBViewWidget(self, self.countWords(str(dbName))))
+    
+    def countWords(self, dbName):
+        query = "Select * from wort order by count desc"
+        dbh = DBHandler()
+        dbh.reconnect(dbName)
+        cursor = dbh.execute(query)
+        dbh.commit()
+        if not cursor: print "No cursor returned: ", cursor
+        result = []
+        for entry in cursor.fetchall():
+            result.append([entry[1], entry[2]])
+        
+        return result
+        
+        

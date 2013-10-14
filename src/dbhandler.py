@@ -1,6 +1,6 @@
 # coding=utf-8
 from sqlite3 import dbapi2 as Database
-from sqlite3 import OperationalError
+from sqlite3 import OperationalError, IntegrityError
 
 ## DB constants
 DB_NAME = "test.sqlite"
@@ -17,34 +17,52 @@ def VALUE_FOR_INSERT(val, TYPE):
     elif TYPE.startswith('VARCHAR'):
         return "'%s'" %(val)#unicode(val))
 
+KEY_RDNR, KEY_PARA, KEY_DATEI = "rdnrId", "paragraphId", "dateiId"
+
 class wordCache(object):
-    def __init__(self, value, rdnrID, paragraphID, dateiID):
+    
+    def __init__(self, value):
         self.word = value.encode("latin-1")
-        self.rdnrID = rdnrID
-        self.paragraphID = paragraphID
-        self.dateiID = dateiID
         self.count = 0
+        self.para_locations = []
+        self.rdnr_locations = []
+        self.datei_locations = []
 
     def inc(self):
         self.count += 1
-
+    
+    def addLocation(self, rdnrID, paragraphID, dateiID):
+        def add(value, location):
+            if value not in location:
+                location.append(value)
+            return location
+        
+        self.para_locations = add(paragraphID, self.para_locations)
+        self.rdnr_locations = add(rdnrID, self.rdnr_locations)
+        self.datei_locations = add(dateiID, self.datei_locations)
+            
     def toQuery(self, dbh, queries = []):
         wordId = dbh.nextIndex("wort")
-        word_para_Id = dbh.nextIndex("wort_paragraph")
-        word_rdnr_Id = dbh.nextIndex("wort_rdnr")
-        word_datei_Id = dbh.nextIndex("wort_datei")
         queries.append("""INSERT INTO wort 
                     (`ID`, `value`, `count`) 
                     VALUES (%d, \'%s\', %d);""" %(wordId, self.word, self.count))
-        queries.append("""INSERT INTO wort_paragraph 
-                    (`ID`, `wortID`, `paragraphID`) 
-                    VALUES (%d, %d, %d);""" %(word_para_Id, wordId, self.paragraphID))
-        queries.append("""INSERT INTO wort_rdnr 
-                    (`ID`, `wortID`, `rdnrID`) 
-                    VALUES (%d, %d, %d);""" %(word_rdnr_Id, wordId, self.rdnrID))
-        queries.append("""INSERT INTO wort_datei 
+        for dateiId in self.datei_locations:
+            word_datei_Id = dbh.nextIndex("wort_datei")
+            queries.append("""INSERT INTO wort_datei 
                     (`ID`, `wortID`, `dateiID`) 
-                    VALUES (%d, %d, %d);""" %(word_datei_Id, wordId, self.dateiID))
+                    VALUES (%d, %d, %d);""" %(word_datei_Id, wordId, dateiId))
+
+        for paraId in self.para_locations:
+            word_para_Id = dbh.nextIndex("wort_paragraph")
+            queries.append("""INSERT INTO wort_paragraph 
+                        (`ID`, `wortID`, `paragraphID`) 
+                        VALUES (%d, %d, %d);""" %(word_para_Id, wordId, paraId))
+        
+        for rdnrId in self.rdnr_locations:
+            word_rdnr_Id = dbh.nextIndex("wort_rdnr")
+            queries.append("""INSERT INTO wort_rdnr 
+                    (`ID`, `wortID`, `rdnrID`) 
+                    VALUES (%d, %d, %d);""" %(word_rdnr_Id, wordId, rdnrId))
         return queries
         # print query
         # exit(1)
@@ -155,7 +173,8 @@ class DBInterface(object):
             })
 
     def addWord(self, value, rdnrID, paragraphID, dateiID):
-        cache = self.words.get(value, wordCache(value, rdnrID, paragraphID, dateiID))
+        cache = self.words.get(value, wordCache(value))
+        cache.addLocation(rdnrID, paragraphID, dateiID)
         cache.inc()
         self.words[value] = cache
 
@@ -259,15 +278,20 @@ class DBHandler(object):
 
     def execute(self, query, throwAnErr = False):
         cursor = None
-        try:
-            cursor = self.connection.execute(query)
-        except OperationalError, e:
+        def reraise(e, query):
             if throwAnErr: 
                 raise e
             else:
                 print "[execute]: ", e
                 print "query was: ", query
                 exit(1)
+        try:
+            cursor = self.connection.execute(query)
+        except OperationalError, e:
+            reraise(e, query)
+            return None
+        except IntegrityError, e:
+            reraise(e, query)
             return None
         return cursor
 
@@ -353,7 +377,9 @@ class DBHandler(object):
 
 
     def __connect(self, dbName = DB_NAME):
-        return Database.connect(dbName)
+        con = Database.connect(dbName)
+        con.text_factory = str
+        return con 
 
     def disconnect(self):
         if self.connection != None: 
