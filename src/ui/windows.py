@@ -193,6 +193,30 @@ class ViewWindow(myDialog):
         if cursor == None: print "No cursor returned: ", cursor
         return [[entry[1], entry[2]] for entry in cursor.fetchall()]
         
+        
+        
+
+def collect(data):
+  res = []
+  def add(start, end):
+    if start == end: res.append([start])
+    else: res.append([start, end])
+
+  start = 0
+  for i in range(len(data)-1):
+    if data[i]+1 == data[i+1]: continue
+    add(data[start], data[i])
+    start = i+1
+  if start <= len(data): add(data[start], data[-1])
+  return res
+
+def toStr(data):
+  res = ""
+  for v in data:
+    res += "%d, " %(v[0]) if len(v) == 1 else "%d-%d, " %(v[0], v[1])
+  return res[:-2]
+
+
 class DetailWindow(myDialog):
   
   listToParaAndRdnr = {}
@@ -218,7 +242,7 @@ class DetailWindow(myDialog):
     self._paraAndRdnr.setModel(model)
     
   def _createListItem(self, para, rdnrs):
-    rdnrsAsStr = "".join([str(item) + ", " for sublist in rdnrs for item in sublist])[:-2]
+    rdnrsAsStr = toStr(collect([item for sublist in rdnrs for item in sublist]))
     item1 = QStandardItem(para.decode("utf-8"))
     item1.setToolTip(para.decode("utf-8"))
     item2 = QStandardItem(rdnrsAsStr)
