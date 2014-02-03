@@ -1,6 +1,7 @@
 # coding: utf-8
 from PyQt4.QtGui import QDialog, QFormLayout, QPushButton, QLineEdit, QFileDialog
 from PyQt4.QtGui import QListWidget, QLayout, QMessageBox, QProgressBar, QWidget
+from PyQt4.QtGui import QTableView, QHBoxLayout, QStandardItemModel, QStandardItem
 
 from PyQt4.QtCore import QString, QDir
 
@@ -10,13 +11,13 @@ from ui.widgets import DBViewWidget
 from dbhandler import DBHandler
 
 def messageBox(icon = QMessageBox.Information, title = "", message = "", parent = None, buttons = QMessageBox.StandardButton):
-    return QMessageBox(icon, title, message,  parent, buttons).exec_()
+    return QMessageBox(icon, title, message,  buttons, parent).exec_()
 
 class myDialog(QDialog):
     myLayout = None
-    def __init__(self, parent = None):
+    def __init__(self, parent = None, layoutCls = None):
         super(myDialog, self).__init__(parent)
-        self.myLayout = QFormLayout(self)
+        self.myLayout = (layoutCls or QFormLayout)(self)
         self.myLayout.setSizeConstraint(QLayout.SetFixedSize)
         self.setLayout(self.myLayout)
         
@@ -113,7 +114,7 @@ class MainWindow(myDialog):
         self.currentReader.ready.connect(self.readerReady)
         self.currentReader.folderStatusUpdated.connect(self.updateFolderStatus)
         self.currentReader.fileStatusUpdated.connect(self.updateFileStatus)
-        self.currentReader.save_folder(str(self.currentFolder), )
+        self.currentReader.save_folder(str(self.currentFolder), "%s.sqlite" %str(dbName))
     
     def openDBView(self):
         selWindow = DBSelectorWindow(self)
@@ -144,6 +145,7 @@ class MainWindow(myDialog):
             return 100
         else:
             return r
+
 class DBSelectorWindow(myDialog):
     _lineEdit = None
     _acceptBtn = None
@@ -179,7 +181,7 @@ class ViewWindow(myDialog):
     def __init__(self, parent=None, dbName = None):
         super(ViewWindow, self).__init__(parent)
         if not dbName: raise Exception("dbName could not be empty or None!")
-        self.layout().addWidget(DBViewWidget(self, self.countWords(str(dbName))))
+        self.layout().addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow()))
     
     def countWords(self, dbName):
         query = "Select * from wort order by count desc"
@@ -194,4 +196,54 @@ class ViewWindow(myDialog):
         
         return result
         
+class DetailWindow(myDialog):
+  
+  listToParaAndRdnr = {}
+  
+  def __init__(self, parent = None):
+    super(DetailWindow, self).__init__(parent, layoutCls = QHBoxLayout)
+    self._listWidget = QListWidget(self)
+    self._paraAndRdnr = QTableView(self)
+    self.layout().addWidget(self._listWidget)
+    self.layout().addWidget(self._paraAndRdnr)
+    self._listWidget.clicked.connect(self.showParaAndRdnr)
+  
+  def showParaAndRdnr(self, listItem):
+    paraAndRdnr = self.listToParaAndRdnr.get(listItem.row())
+    model = QStandardItemModel(self)
+    c = 0
+    for para, rdnrs in paraAndRdnr.iteritems():
+      model.insertRow(c, self._createListItem(para, rdnrs))
+      c += 1
+    self._paraAndRdnr.setModel(model)
+    
+  def _createListItem(self, para, rdnrs):
+    rdnrsAsStr = ""
+    rdnrsAsStr = rdnrsAsStr.join([str(item) + ", " for sublist in rdnrs for item in sublist])[:-2]
+    return [QStandardItem(para.decode("utf-8")), QStandardItem(rdnrsAsStr)]
+  
+  def showDetails(self, content, windowTitle = None):
+    if windowTitle: self.setWindowTitle(windowTitle)
+    details = self._map_details(content)
+    self._listWidget.clear()
+    i = 0
+    for fileName, paraAndRdnrs in details.iteritems():
+      self._listWidget.addItem(fileName)
+      self.listToParaAndRdnr[i] = paraAndRdnrs
+      i += 1
+    
+  def _map_details(self, data):
+    def nestedMap(data):
+      res = {}
+      idx = len(data[0])-1
+      for d in data:
+        old = res.get(d[idx], [])
+        old.append(d[:idx])
+        res[d[idx]] = old
+      return res
+  
+    res = nestedMap(data)
+    for k, v in res.iteritems():
+      res[k] = nestedMap(v)
+    return res
         

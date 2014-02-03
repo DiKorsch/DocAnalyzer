@@ -1,6 +1,7 @@
 # coding=utf-8
 from sqlite3 import dbapi2 as Database
 from sqlite3 import OperationalError, IntegrityError
+from symbol import try_stmt
 
 ## DB constants
 DB_NAME = "test.sqlite"
@@ -250,6 +251,29 @@ class DBInterface(object):
         
     def disconnect(self):
         self._dbh.disconnect()
+      
+    def getWordInfo(self, word):
+      try: 
+        query = """
+          select rdnrVal, paraCap, datei.name as name
+            from datei,
+              (select dateiID, rdnrVal, caption as paraCap
+            
+              from paragraph,  
+                (SELECT rdnr.value as rdnrVal, paragraphID
+                from rdnr, wort, wort_rdnr
+            
+                where wort.value = "%s" and
+                wort_rdnr.wortID = wort.ID and
+                wort_rdnr.rdnrID = rdnr.ID) as t1
+            
+              where t1.paragraphID = paragraph.ID
+              ) as t2
+            where datei.ID = t2.dateiID"""
+        query = query %word
+        return self._dbh.execute(query)
+      except Exception, e:
+        print "getWordInfo:", e
 
 class DBHandler(object):
     LAST_IDX = {}
@@ -332,6 +356,7 @@ class DBHandler(object):
             self.commit()
         except Exception, e:
             print "deleteTableContent:", e
+          
 
     def __deleteNones(self, aDict):
         RESULT = {}

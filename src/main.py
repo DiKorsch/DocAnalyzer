@@ -25,9 +25,9 @@ class SingleApplication(QApplication):
     
     
 if __name__ == '__main__':
-    from fileReader import Reader
-    from os import path
-    from dbhandler import DBInterface
+#     from fileReader import Reader
+#     from os import path
+#     from dbhandler import DBInterface
 
     
     import sys
@@ -36,15 +36,13 @@ if __name__ == '__main__':
     if app.is_running():
         print "[main] the tool is already running!"
         exit()
-        
-    
     
     print "[main] ready to close"
     r = app.exec_()  
     print "[main] exiting with status %d" %r  
     exit(r)
-    DBInterface().clear_db()
-    reader = Reader()
-    reader.save_file(path.abspath("../tests/Paragraphen/P_001-007.doc"))
-    
-    reader.write()
+#     DBInterface().clear_db()
+#     reader = Reader()
+#     reader.save_file(path.abspath("../tests/Paragraphen/P_001-007.doc"))
+#     
+#     reader.write()
