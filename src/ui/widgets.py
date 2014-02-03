@@ -1,7 +1,7 @@
 # coding: utf-8
-from PyQt4.QtGui import QWidget, QVBoxLayout, QTableView, QCheckBox
-from PyQt4.QtGui import QStandardItemModel, QStandardItem
-from PyQt4.QtCore import QString
+from PyQt4.QtGui import QWidget, QVBoxLayout, QTableView, QCheckBox, QPushButton
+from PyQt4.QtGui import QStandardItemModel, QStandardItem, QHBoxLayout, QLineEdit
+from PyQt4.QtCore import QString, pyqtSignal
 from dbhandler import DBInterface
 
 
@@ -12,11 +12,33 @@ def capitalized(s):
     if c == c.upper(): return True
     else: return False
 
+class SearchWidget(QWidget):
+  clicked = pyqtSignal(str)
+  reset = pyqtSignal()
+  
+  def __init__(self, parent  = None):
+    super(SearchWidget, self).__init__(parent)
+    self.myLayout = QHBoxLayout(self)
+    self.button = QPushButton("Suchen", parent = self)
+    self.resetBtn = QPushButton(QString.fromUtf8("Zurücksetzen"), parent = self)
+    self.lineedit = QLineEdit(parent = self)
+    self.setLayout(self.myLayout)
+    self.layout().addWidget(self.lineedit)
+    self.layout().addWidget(self.button)
+    self.layout().addWidget(self.resetBtn)
+    
+    self.button.clicked.connect(self.searchemited)
+    self.resetBtn.clicked.connect(self.reset)
+  
+  def searchemited(self):
+    self.clicked.emit(self.lineedit.text())
+    
+    
 class DBViewWidget(QWidget):
-#     myLayout = None
     _defaultContent = []
     _capitalContent = []
     _currentCont = []
+    _lastCurrent = []
     
     def __init__(self, parent  = None, content = [], detailWindow = None):
         super(DBViewWidget, self).__init__(parent)
@@ -25,9 +47,13 @@ class DBViewWidget(QWidget):
         self.detailWindow = detailWindow
         self._tableWidget.doubleClicked.connect(self.showDetails)
         self._chkBx = QCheckBox(QString.fromUtf8("Großbuchstaben"), self)
-        
         self._chkBx.toggled.connect(self.toggleContent)
         
+        self._searchWidget = SearchWidget(self)
+        self._searchWidget.clicked.connect(self.filter)
+        self._searchWidget.reset.connect(self.reset)
+        
+        self.myLayout.addWidget(self._searchWidget)
         self.myLayout.addWidget(self._tableWidget)
         self.myLayout.addWidget(self._chkBx)
         
@@ -35,6 +61,13 @@ class DBViewWidget(QWidget):
         
         self._init_contents(content)
         self.setContent(self._defaultContent)
+    
+    def filter(self, text):
+      self._lastCurrent = self._currentCont
+      self.setContent([val for val in self._currentCont if str(text) in val[0]])
+    
+    def reset(self):
+      if self._lastCurrent: self.setContent(self._lastCurrent)
     
     def showDetails(self, idx):
       word = self._get_word_for_row(row = idx.row())

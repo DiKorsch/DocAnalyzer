@@ -218,8 +218,7 @@ class DetailWindow(myDialog):
     self._paraAndRdnr.setModel(model)
     
   def _createListItem(self, para, rdnrs):
-    rdnrsAsStr = ""
-    rdnrsAsStr = rdnrsAsStr.join([str(item) + ", " for sublist in rdnrs for item in sublist])[:-2]
+    rdnrsAsStr = "".join([str(item) + ", " for sublist in rdnrs for item in sublist])[:-2]
     return [QStandardItem(para.decode("utf-8")), QStandardItem(rdnrsAsStr)]
   
   def showDetails(self, content, windowTitle = None):
