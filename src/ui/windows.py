@@ -3,7 +3,7 @@ from PyQt4.QtGui import QDialog, QFormLayout, QPushButton, QLineEdit, QFileDialo
 from PyQt4.QtGui import QListWidget, QLayout, QMessageBox, QProgressBar, QWidget
 from PyQt4.QtGui import QTableView, QHBoxLayout, QStandardItemModel, QStandardItem
 
-from PyQt4.QtCore import QString, QDir
+from PyQt4.QtCore import QString, QDir, Qt
 
 import os
 from fileReader import Reader
@@ -181,7 +181,8 @@ class ViewWindow(myDialog):
     def __init__(self, parent=None, dbName = None):
         super(ViewWindow, self).__init__(parent)
         if not dbName: raise Exception("dbName could not be empty or None!")
-        self.layout().addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow()))
+        self.layout().addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow))
+        self.setWindowTitle("Daten von " + str(dbName))
     
     def countWords(self, dbName):
         query = "Select * from wort order by count desc"
@@ -189,12 +190,8 @@ class ViewWindow(myDialog):
         dbh.reconnect(dbName)
         cursor = dbh.execute(query)
         dbh.commit()
-        if not cursor: print "No cursor returned: ", cursor
-        result = []
-        for entry in cursor.fetchall():
-            result.append([entry[1], entry[2]])
-        
-        return result
+        if cursor == None: print "No cursor returned: ", cursor
+        return [[entry[1], entry[2]] for entry in cursor.fetchall()]
         
 class DetailWindow(myDialog):
   
@@ -213,13 +210,20 @@ class DetailWindow(myDialog):
     model = QStandardItemModel(self)
     c = 0
     for para, rdnrs in paraAndRdnr.iteritems():
-      model.insertRow(c, self._createListItem(para, rdnrs))
+      l = self._createListItem(para, rdnrs)
+      model.insertRow(c, l)
       c += 1
+    model.setHeaderData(0, Qt.Horizontal, "Paragraph")
+    model.setHeaderData(1, Qt.Horizontal, "Randnummern")
     self._paraAndRdnr.setModel(model)
     
   def _createListItem(self, para, rdnrs):
     rdnrsAsStr = "".join([str(item) + ", " for sublist in rdnrs for item in sublist])[:-2]
-    return [QStandardItem(para.decode("utf-8")), QStandardItem(rdnrsAsStr)]
+    item1 = QStandardItem(para.decode("utf-8"))
+    item1.setToolTip(para.decode("utf-8"))
+    item2 = QStandardItem(rdnrsAsStr)
+    item2.setToolTip(rdnrsAsStr)
+    return [item1, item2]
   
   def showDetails(self, content, windowTitle = None):
     if windowTitle: self.setWindowTitle(windowTitle)

@@ -1,7 +1,7 @@
 # coding: utf-8
 from PyQt4.QtGui import QWidget, QVBoxLayout, QTableView, QCheckBox, QPushButton
 from PyQt4.QtGui import QStandardItemModel, QStandardItem, QHBoxLayout, QLineEdit
-from PyQt4.QtCore import QString, pyqtSignal
+from PyQt4.QtCore import QString, pyqtSignal, Qt
 from dbhandler import DBInterface
 
 
@@ -40,11 +40,11 @@ class DBViewWidget(QWidget):
     _currentCont = []
     _lastCurrent = []
     
-    def __init__(self, parent  = None, content = [], detailWindow = None):
+    def __init__(self, parent  = None, content = [], detailWindowCls = None):
         super(DBViewWidget, self).__init__(parent)
         self.myLayout = QVBoxLayout(self)
         self._tableWidget = QTableView(self)
-        self.detailWindow = detailWindow
+        self.detailWindow = detailWindowCls() if detailWindowCls else None
         self._tableWidget.doubleClicked.connect(self.showDetails)
         self._chkBx = QCheckBox(QString.fromUtf8("Großbuchstaben"), self)
         self._chkBx.toggled.connect(self.toggleContent)
@@ -74,6 +74,7 @@ class DBViewWidget(QWidget):
       cursor = self._get_info_for_word(word = word)
       self.detailWindow.showDetails(cursor.fetchall(), "Vorkommen von \"%s\"" %(word[0]))
       self.detailWindow.show()
+      self.detailWindow.raise_()
     
     def _get_info_for_word(self, word = None, row = -1):
       if not word and row < 0: print "no word or row given!"; return
@@ -98,7 +99,9 @@ class DBViewWidget(QWidget):
       for value in content:
         model.insertRow(c, self._createListItem(value))
         c += 1
-          
+      
+      model.setHeaderData(0, Qt.Horizontal, "Wort")
+      model.setHeaderData(1, Qt.Horizontal, "Vorkommen")
       self._tableWidget.setModel(model)
          
     def toggleContent(self, caps):
