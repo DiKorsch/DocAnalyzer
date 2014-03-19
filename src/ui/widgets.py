@@ -64,7 +64,7 @@ class DBViewWidget(QWidget):
     
     def filter(self, text):
       self._lastCurrent = self._currentCont
-      self.setContent([val for val in self._currentCont if str(text) in val[0]])
+      self.setContent([val for val in self._currentCont if str(text).lower() in val[0].lower()])
     
     def reset(self):
       if self._lastCurrent: self.setContent(self._lastCurrent)

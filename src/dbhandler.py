@@ -1,7 +1,7 @@
 # coding=utf-8
 from sqlite3 import dbapi2 as Database
-from sqlite3 import OperationalError, IntegrityError
-from symbol import try_stmt
+import sqlite3
+# from sqlite3 import OperationalError, IntegrityError
 
 ## DB constants
 DB_NAME = "test.sqlite"
@@ -311,10 +311,10 @@ class DBHandler(object):
                 exit(1)
         try:
             cursor = self.connection.execute(query)
-        except OperationalError, e:
+        except sqlite3.OperationalError, e:
             reraise(e, query)
             return None
-        except IntegrityError, e:
+        except sqlite3.IntegrityError, e:
             reraise(e, query)
             return None
         return cursor
@@ -340,7 +340,7 @@ class DBHandler(object):
             self.execute(query, True)
             self.commit()
             return True
-        except OperationalError:
+        except sqlite3.OperationalError:
             return False
 
     def deleteTable(self, name):
@@ -538,5 +538,5 @@ class TestDBInterface(unittest.TestCase):
         self.assertEqual(tbl_content.keys()[0], 1)
         self.assertEqual(tbl_content.get(1), {"value": word["value"], "count": 2})
 
-if __name__ == "__main__":
-    unittest.main()
+# if __name__ == "__main__":
+#     unittest.main()

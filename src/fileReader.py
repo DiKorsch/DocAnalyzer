@@ -2,7 +2,7 @@
 from doc.reader import DocReader
 from os import path
 from dbhandler import DBInterface, DBHandler
-import os
+import os, re
 
 from PyQt4.QtCore import QObject, pyqtSignal, QThread
 
@@ -36,7 +36,8 @@ class ReaderThread(QThread):
                 self.save_file(self.absPath)
             self.dbi.writeWords()
             self.ready.emit()
-        except Exception:
+        except Exception, e:
+            print __file__, "ReaderThread > run(): ", e
             traceback.print_exc()
         finally:
             self.dbi.disconnect()
@@ -48,7 +49,7 @@ class ReaderThread(QThread):
         
         files = []
         for f in os.listdir(folderPath):
-            if f.endswith(".doc"):
+            if f.endswith(".doc") and not f.startswith("~"):
                 files.append(f)
         i = 0
         for fName in files:
@@ -69,6 +70,7 @@ class ReaderThread(QThread):
         content = contentParted[2]
         paraSplitter = '%s\x0c' %(NEW_LINE)
         paragraphs = content.split(paraSplitter)
+#         print filePath, "got %d paragraphs" %(len(paragraphs))
         
         FILE_ID = self.dbi.addFile(path.basename(filePath), caption)
         for para in paragraphs:
@@ -78,6 +80,7 @@ class ReaderThread(QThread):
             curRdNr = None
             rdNrContent = []
             for line in paraContent.split(NEW_LINE):
+                # eigentlich werden randnummern in textboxes als eigene Zeile erkannt...
                 if line.isdigit():
                     if curRdNr != None:
                         RDNR_ID = self.dbi.addRdNr(curRdNr, PARAGRAPH_ID)
@@ -85,17 +88,26 @@ class ReaderThread(QThread):
                     rdNrContent = []
                     curRdNr = int(line)
 #                     self.readChars += len(line) + len(NEW_LINE)
+                # ... wenn man aber die Dokumente aus odt importiert, werden die in die zeile vorne drangehangen(zusammen mit 2 tabs)
+                elif re.match("\d+\t\t", line[:10]):
+                    partition = line.partition("\t\t")
+                    if curRdNr != None:
+                        RDNR_ID = self.dbi.addRdNr(curRdNr, PARAGRAPH_ID)
+                        self.save_content(rdNrContent, RDNR_ID, PARAGRAPH_ID, FILE_ID)
+                    rdNrContent = [partition[2].strip()]
+                    curRdNr = int(partition[0])
                 else:
                     rdNrContent.append(line)
             self.fileStatusUpdated.emit(self.readChars, size)
 
     def save_content(self, content, RDNR_ID, PARAGRAPH_ID, FILE_ID):
         for line in content:
-            for word in self.extract_words(line):
+            words = self.extract_words(line)
+            for word in words:
                 self.dbi.addWord(word, RDNR_ID, PARAGRAPH_ID, FILE_ID)
 #             self.readChars += len(line) + len(NEW_LINE)
     
-    def extract_words(self, line):
+    def clean_line(self, line):
         charsToDelete = ['.', ',', ';', ':', '?', '!', '"', "'", "(", ")", chr(0)]
         charsToReplaceWithSpace = ['/', ]
     
@@ -104,8 +116,10 @@ class ReaderThread(QThread):
             cleanLine = cleanLine.replace(c, '') 
         for c in charsToReplaceWithSpace:
             cleanLine = cleanLine.replace(c, ' ') 
-    
-        return cleanLine.split()
+        return cleanLine
+      
+    def extract_words(self, line):
+        return self.clean_line(line).split()
     
     def write(self):
         self.dbi.writeWords()

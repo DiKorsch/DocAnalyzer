@@ -99,7 +99,7 @@ class MainWindow(myDialog):
             return 
         self._listWidget.clear()
         for fName in os.listdir(folderPath):
-            if fName.endswith(".doc"): self._listWidget.addItem(fName)
+            if fName.endswith(".doc") and not fName.startswith("~"): self._listWidget.addItem(fName)
 
     def saveFilesToDB(self):
         selWindow = DBSelectorWindow(self)

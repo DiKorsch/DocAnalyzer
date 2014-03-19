@@ -1,4 +1,7 @@
 *.pyc
 nbproject/*
+src/build/*
+src/dist/*
 .settings/*
 *.sqlite
+*.exe
