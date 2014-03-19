@@ -48,12 +48,15 @@ class DBViewWidget(QWidget):
         self._tableWidget.doubleClicked.connect(self.showDetails)
         self._chkBx = QCheckBox(QString.fromUtf8("Großbuchstaben"), self)
         self._chkBx.toggled.connect(self.toggleContent)
+        self._chkBxSorting = QCheckBox(QString.fromUtf8("Alphabetisch"), self)
+        self._chkBxSorting.toggled.connect(self.toggleCase)
         
         self._searchWidget = SearchWidget(self)
         self._searchWidget.clicked.connect(self.filter)
         self._searchWidget.reset.connect(self.reset)
         
         self.myLayout.addWidget(self._searchWidget)
+        self.myLayout.addWidget(self._chkBxSorting)
         self.myLayout.addWidget(self._tableWidget)
         self.myLayout.addWidget(self._chkBx)
         
@@ -96,6 +99,10 @@ class DBViewWidget(QWidget):
       self._currentCont = content
       model = QStandardItemModel(self)
       c = 0
+      if self._chkBxSorting.isChecked():
+        content = sorted(content, key=lambda val: val[0])
+      else:
+        content = sorted(content, key=lambda val: val[1], reverse=True)
       for value in content:
         model.insertRow(c, self._createListItem(value))
         c += 1
@@ -103,7 +110,10 @@ class DBViewWidget(QWidget):
       model.setHeaderData(0, Qt.Horizontal, "Wort")
       model.setHeaderData(1, Qt.Horizontal, "Vorkommen")
       self._tableWidget.setModel(model)
-         
+    
+    def toggleCase(self, checked):
+      self.setContent(self._currentCont)
+          
     def toggleContent(self, caps):
         if caps:
             self.setContent(self._capitalContent)
