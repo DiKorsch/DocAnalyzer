@@ -1,6 +1,9 @@
 # coding: utf-8
 from PyQt4.QtGui import QDialog, QLayout, QWidget, QFormLayout
 
+from ui.widgets import myWidget
+from PyQt4.Qt import Qt
+
 class myDialog(QDialog):
     myLayout = None
     def __init__(self, parent = None, layoutCls = None, fixed = True):
@@ -9,6 +12,14 @@ class myDialog(QDialog):
         self.setLayout(self.myLayout)
         if fixed: self.myLayout.setSizeConstraint(QLayout.SetFixedSize)
 
+class myWindow(QWidget):
+    def __init__(self, parent = None, layoutCls = None, fixed = True, flags = Qt.Window):
+        super(myWindow, self).__init__(parent, flags)
+        self.myLayout = (layoutCls or QFormLayout)(self)
+        self.setLayout(self.myLayout)
+        if fixed: self.myLayout.setSizeConstraint(QLayout.SetFixedSize)
+
+        
 class DBSelectorWindow(myDialog):
     _lineEdit = None
     _acceptBtn = None

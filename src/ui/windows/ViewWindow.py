@@ -4,13 +4,13 @@ from PyQt4.QtGui import QListWidget
 from PyQt4.QtGui import QTableView, QHBoxLayout, QStandardItemModel, QStandardItem
 from PyQt4.QtCore import Qt
 
-from ui.windows import myDialog
+from ui.windows import myWindow
 from dbhandler import DBHandler
 from ui.widgets import DBViewWidget
 
-class ViewWindow(myDialog):
+class ViewWindow(myWindow):
     def __init__(self, parent=None, dbName = None):
-        super(ViewWindow, self).__init__(parent)
+        super(ViewWindow, self).__init__(parent, fixed = False)
         if not dbName: raise Exception("dbName could not be empty or None!")
         self.layout().addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow))
         self.setWindowTitle("Daten von " + str(dbName))
@@ -47,7 +47,7 @@ def toStr(data):
   return res[:-2]
 
 
-class DetailWindow(myDialog):
+class DetailWindow(myWindow):
   
   listToParaAndRdnr = {}
   
