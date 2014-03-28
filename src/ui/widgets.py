@@ -1,6 +1,7 @@
 # coding: utf-8
 from PyQt4.QtGui import QWidget, QVBoxLayout, QTableView, QCheckBox, QPushButton
 from PyQt4.QtGui import QStandardItemModel, QStandardItem, QHBoxLayout, QLineEdit
+from PyQt4.QtGui import QFormLayout
 from PyQt4.QtCore import QString, pyqtSignal, Qt
 from dbhandler import DBInterface
 
@@ -11,6 +12,13 @@ def capitalized(s):
     c = s[0]
     if c == c.upper(): return True
     else: return False
+
+class myWidget(QWidget):
+    def __init__(self, parent = None, layoutCls = None):
+      super(myWidget, self).__init__(parent)
+      self.myLayout = (layoutCls or QFormLayout)(self)
+      self.setLayout(self.myLayout)
+
 
 class SearchWidget(QWidget):
   clicked = pyqtSignal(str)
