@@ -5,3 +5,4 @@ src/dist/*
 .settings/*
 *.sqlite
 *.exe
+*.7z
