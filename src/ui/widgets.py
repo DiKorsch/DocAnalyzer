@@ -196,7 +196,9 @@ class myTable(myWidget):
         self.updateContent()
     
     def showBlackListDetails(self, idx):
-        pass
+        word = self._get_word_for_row(idx.row(), True)
+        cursor = self._get_info_for_word(word = word)
+        self.detailsReady.emit(cursor.fetchall(), "Vorkommen von \"%s\"" %(word[0]))
         
     def showDetails(self, idx):
         word = self._get_word_for_row(row = idx.row())
