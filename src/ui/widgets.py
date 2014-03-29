@@ -5,6 +5,8 @@ from PyQt4.QtGui import QFormLayout, QGridLayout, QVBoxLayout
 from PyQt4.QtCore import QString, pyqtSignal, Qt, QModelIndex
 from dbhandler import DBInterface
 
+import pickle
+from os.path import os
 
 def capitalized(s):
     if len(s) == 0 or (not(s.isalpha() or "-" in s)):
@@ -47,10 +49,11 @@ class myTable(myWidget):
     
     detailsReady = pyqtSignal(list, str)
     
-    def __init__(self, parent  = None, content = []):
+    def __init__(self, parent  = None, content = [], dbName = None):
         super(myTable, self).__init__(parent, QHBoxLayout)
         
         self.table = {}
+        self.dbName = dbName
         
         self.table[False] = QTableView(self)
         self.table[False].doubleClicked.connect(self.showDetails)
@@ -76,17 +79,15 @@ class myTable(myWidget):
         
         
         self._defaultContent = list(content)
-        self._currentCont = {
-         True: self._init_black_list(), 
-         False: [] }
+        self._blackListContent = []
         
         self.alphaSorting = False
         self.caps = False
         
-        self.setContent(self._defaultContent)
-    
-    def _init_black_list(self):
-        return []
+        self.loadBlackListFromFile()
+
+        self.resetContent()
+        self.updateContent()
     
     def setModel(self, model, blackList = False):
         self.table[blackList].setModel(model)
@@ -94,21 +95,49 @@ class myTable(myWidget):
     def updateContent(self):
         for val in [True, False]: self.setContent(self._currentCont[val], val)
 
-    def updateBlackList(self, addToBl):
-        if len(self._currentCont[addToBl]) == 0: return
-        curVal = self._currentCont[addToBl][self.table[addToBl].currentIndex().row()]
-        self._currentCont[addToBl].remove(curVal)
-        self._currentCont[not addToBl].append(curVal)
+    def saveBlackListToFile(self):
+        f = open(self.blackListFile(), "w")
+        pickle.dump(self._blackListContent, f)
+        f.close()
+    
+    def loadBlackListFromFile(self):
+        blFileName = self.blackListFile()
+        if not os.path.exists(blFileName): 
+            f = open(blFileName, "w")
+            pickle.dump([], f)
+            f.close()
+        f = open(blFileName, "r")
+        self._blackListContent = pickle.load(f)
+        f.close()
+    
+    def blackListFile(self):
+        return self.dbName + ".pkl"
+    
+    def addToBl(self): 
+        if len(self._currentCont[False]) == 0: return
+        curVal = self.adjustContent(self._currentCont[False])[self.table[False].currentIndex().row()]
+        if curVal in self._blackListContent: 
+            print "sth went wrong by adding word to black list"
+            return
+        self._blackListContent.append(curVal)
+        self._currentCont[True].append(curVal)
+        self._currentCont[False].remove(curVal)
         self.updateContent()
+        self.saveBlackListToFile()
+
+    def removeFromBl(self): 
+        if len(self._currentCont[True]) == 0: return
+        curVal = self.adjustContent(self._currentCont[True])[self.table[True].currentIndex().row()]
+        if curVal not in self._blackListContent: 
+            print "sth went wrong by removing word to black list"
+            return
+        self._blackListContent.remove(curVal)
+        self._currentCont[True].remove(curVal)
+        self._currentCont[False].append(curVal)
+        self.updateContent()
+        self.saveBlackListToFile()
     
-    
-    def addToBl(self): self.updateBlackList(False)
-    
-    def removeFromBl(self): self.updateBlackList(True)
-    
-    def setContent(self, content, blackList = False):
-        model = QStandardItemModel(self)
-        c = 0
+    def adjustContent(self, content):
         if self.caps:
             content = [val for val in content if capitalized(val[0])]
         
@@ -117,11 +146,16 @@ class myTable(myWidget):
         else:
             content = sorted(content, key=lambda val: val[1], reverse=True)
             
-        for value in content:
+        return content
+    
+    def setContent(self, content, blackList = False):
+        model = QStandardItemModel(self)
+        c = 0
+        for value in self.adjustContent(content):
             model.insertRow(c, self._createListItem(value))
             c += 1
 
-        self._currentCont[blackList] = content
+#         self._currentCont[blackList] = content
         
         model.setHeaderData(0, Qt.Horizontal, "Wort")
         model.setHeaderData(1, Qt.Horizontal, "Vorkommen")
@@ -135,19 +169,31 @@ class myTable(myWidget):
             result.append(item)
         return result
     
-    def reset(self, blackList = False):
-        self.setContent([val for val in self._defaultContent if val not in self._currentCont[not blackList]], blackList)
+    def resetContent(self):
+        self._currentCont = {
+         True: list(self._blackListContent), 
+         False: [val for val in self._defaultContent if val not in self._blackListContent] }
+
+    def filterContent(self, text):
+        for key, content in self._currentCont.iteritems():
+            self._currentCont[key] = [val for val in content if str(text).lower() in val[0].lower()]
+
     
-    def filter(self, text, blackList = False):
-        self.setContent([val for val in self._defaultContent if str(text).lower() in val[0].lower()], blackList)
+    def reset(self):
+        self.resetContent()
+        self.updateContent()
+    
+    def filter(self, text):
+        self.filterContent(text)
+        self.updateContent()
     
     def sortAlpha(self, checked):
         self.alphaSorting = checked
-        self.setContent(self._currentCont[False])
+        self.updateContent()
           
     def capsClicked(self, caps):
         self.caps = caps
-        self.setContent(self._currentCont[False])
+        self.updateContent()
     
     def showBlackListDetails(self, idx):
         pass
@@ -164,18 +210,18 @@ class myTable(myWidget):
         return cursor
     
     def _get_word_for_row(self, row, blackList = False):
-        return self._currentCont[blackList][row]        
+        return self.adjustContent(self._currentCont[blackList])[row]        
             
 class DBViewWidget(QWidget):
     
-    def __init__(self, parent  = None, content = [], detailWindowCls = None):
+    def __init__(self, parent  = None, content = [], detailWindowCls = None, dbName = None):
         super(DBViewWidget, self).__init__(parent)
         self.detailWindow = detailWindowCls() if detailWindowCls else None
 
         self.myLayout = QGridLayout(self)
         self.myLayout.setContentsMargins(0, 0, 0, 0)
         
-        self._tableWidget = myTable(self, content)
+        self._tableWidget = myTable(self, content, dbName)
         self._tableWidget.detailsReady.connect(self.openDetailWindow)
         
         self._chkBxCaps = QCheckBox(QString.fromUtf8("Großbuchstaben"), self)
@@ -193,16 +239,11 @@ class DBViewWidget(QWidget):
         self.myLayout.addWidget(self._chkBxSorting,         1, 1, 1, 1)
         self.myLayout.addWidget(self._tableWidget,          2, 0, 1, 2)
         
-#         self._init_contents(content)
-#         self.setContent(self._defaultContent)
     
     def openDetailWindow(self, data, caption):
         self.detailWindow.showDetails(data, caption)
         self.detailWindow.show()
         self.detailWindow.raise_()
-    
-    def showBlackList(self, val):
-        print "showing black list", val
     
       
                 

@@ -12,7 +12,7 @@ class ViewWindow(myWindow):
     def __init__(self, parent=None, dbName = None):
         super(ViewWindow, self).__init__(parent, layoutCls=QHBoxLayout, fixed = False)
         if not dbName: raise Exception("dbName could not be empty or None!")
-        self.myLayout.addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow))
+        self.myLayout.addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow, dbName))
         self.setWindowTitle("Daten von " + str(dbName))
     
     def countWords(self, dbName):
