@@ -8,11 +8,7 @@ from dbhandler import DBInterface
 import pickle, os
 
 def capitalized(s):
-    if len(s) == 0 or (not(s.isalpha() or "-" in s)):
-        return False
-    c = s[0]
-    if c == c.upper(): return True
-    else: return False
+    return len(s) != 0 and (("A" <= s[0] and s[0] <="Z") or s[0] in ["Ä", "Ü", "Ö"])
 
 class myWidget(QWidget):
     def __init__(self, parent = None, layoutCls = None):
@@ -179,15 +175,16 @@ class myTable(myWidget):
          False: [val for val in self._defaultContent if val not in self._blackListContent] }
 
     def filterContent(self, text):
+        text = str(text.toUtf8()).decode("utf-8")
         for key, content in self._currentCont.iteritems():
-            self._currentCont[key] = [val for val in content if str(text).lower() in val[0].lower()]
-
+            self._currentCont[key] = [val for val in content if text.lower() in val[0].lower().decode("latin-1")]
     
     def reset(self):
         self.resetContent()
         self.updateContent()
     
     def filter(self, text):
+        self.resetContent()
         self.filterContent(text)
         self.updateContent()
     
