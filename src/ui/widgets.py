@@ -5,8 +5,7 @@ from PyQt4.QtGui import QFormLayout, QGridLayout, QVBoxLayout
 from PyQt4.QtCore import QString, pyqtSignal, Qt, QModelIndex
 from dbhandler import DBInterface
 
-import pickle
-from os.path import os
+import pickle, os
 
 def capitalized(s):
     if len(s) == 0 or (not(s.isalpha() or "-" in s)):
@@ -140,9 +139,14 @@ class myTable(myWidget):
     def adjustContent(self, content):
         if self.caps:
             content = [val for val in content if capitalized(val[0])]
-        
+        def myCmp(x, y):
+            if len(x) and len(y):
+                if x[0].isalpha() and not y[0].isalpha(): return -1
+                if not x[0].isalpha() and y[0].isalpha(): return 1
+            return cmp(x.lower(), y.lower())
+                
         if self.alphaSorting:
-            content = sorted(content, key=lambda val: val[0])
+            content = sorted(content, key=lambda val: val[0], cmp = myCmp)
         else:
             content = sorted(content, key=lambda val: val[1], reverse=True)
             

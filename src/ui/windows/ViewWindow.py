@@ -52,7 +52,7 @@ class DetailWindow(myWindow):
     listToParaAndRdnr = {}
   
     def __init__(self, parent = None):
-        super(DetailWindow, self).__init__(parent, layoutCls = QHBoxLayout)
+        super(DetailWindow, self).__init__(parent, layoutCls = QHBoxLayout, fixed = False)
         self._listWidget = QListWidget(self)
         self._paraAndRdnr = QTableView(self)
         self.layout().addWidget(self._listWidget)
