@@ -301,23 +301,7 @@ class DBHandler(object):
         return nextId
 
     def execute(self, query, throwAnErr = False):
-        cursor = None
-        def reraise(e, query):
-            if throwAnErr: 
-                raise e
-            else:
-                print "[execute]: ", e
-                print "query was: ", query
-                exit(1)
-        try:
-            cursor = self.connection.execute(query)
-        except sqlite3.OperationalError, e:
-            reraise(e, query)
-            return None
-        except sqlite3.IntegrityError, e:
-            reraise(e, query)
-            return None
-        return cursor
+        return self.connection.execute(query)
 
     def commit(self):
         self.connection.commit()

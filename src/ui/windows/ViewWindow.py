@@ -7,13 +7,16 @@ from PyQt4.QtCore import Qt
 from ui.windows import myWindow
 from dbhandler import DBHandler
 from ui.widgets import DBViewWidget
+import os
 
 class ViewWindow(myWindow):
     def __init__(self, parent=None, dbName = None):
         super(ViewWindow, self).__init__(parent, layoutCls=QHBoxLayout, fixed = False)
+        dbName = str(dbName)
         if not dbName: raise Exception("dbName could not be empty or None!")
-        self.myLayout.addWidget(DBViewWidget(self, self.countWords(str(dbName)), DetailWindow, dbName))
-        self.setWindowTitle("Daten von " + str(dbName))
+        if not os.path.exists(dbName): raise Exception("database does not exist!")
+        self.myLayout.addWidget(DBViewWidget(self, self.countWords(dbName), DetailWindow, dbName))
+        self.setWindowTitle("Daten von " + dbName)
     
     def countWords(self, dbName):
         query = "Select * from wort order by count desc"

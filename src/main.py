@@ -1,6 +1,8 @@
 from PyQt4.QtGui import QApplication
 from PyQt4.QtCore import QSharedMemory
 from ui.windows import MainWindow
+import sys
+from exceptionhook import install_excepthook
 
 class SingleApplication(QApplication):
     def __init__(self, *argv):
@@ -26,13 +28,14 @@ class SingleApplication(QApplication):
     
 if __name__ == '__main__':
     
-    import sys
     app = SingleApplication(sys.argv)  
  
     if app.is_running():
         print "[main] the tool is already running!"
         exit()
     
+    print "[main] installing exception hook..."
+    install_excepthook()
     print "[main] ready to close"
     r = app.exec_()  
     print "[main] exiting with status %d" %r
